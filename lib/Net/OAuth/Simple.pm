@@ -3,8 +3,9 @@ package Net::OAuth::Simple;
 
 use warnings;
 use strict;
-our $VERSION = "0.6";
+our $VERSION = "0.7";
 
+use URI;
 use LWP;
 use CGI;
 use Carp;
@@ -53,21 +54,20 @@ for you.
 
     sub view_restricted_resource {
         my $self = shift;
-        return $self->make_restriced_request($url, 'GET');
+        return $self->make_restricted_request($url, 'GET');
     }
 
     sub update_restricted_resource {
         my $self = shift
-        return $self->make_restriced_request($url, 'POST', %extra_params);    
+        return $self->make_restricted_request($url, 'POST', %extra_params);    
     }
-
-
     1;
 
 
 Then in your main app you need to do
 
-    my %tokens  = get_tokens();
+    # Get the tokens from the command line, a config file or wherever 
+    my %tokens  = get_tokens(); 
     my $app     = Net::AppThatUsesOAuth->new(%tokens);
 
     # Check to see we have a consumer key and secret
@@ -307,7 +307,7 @@ sub _token {
 
 =head2 authorization_url
 
-Get the url the user needs to visit to authorize.
+Get the url the user needs to visit to authorize as a URI object.
 
 Note: this is the base url - not the full url with the necessary OAuth params.
 
@@ -320,7 +320,7 @@ sub authorization_url {
 
 =head2 request_token_url 
 
-Get the url to obtain a request token.
+Get the url to obtain a request token as a URI object.
 
 =cut
 sub request_token_url {
@@ -330,7 +330,7 @@ sub request_token_url {
 
 =head2 access_token_url 
 
-Get the url to obtain an access token.
+Get the url to obtain an access token as a URI object.
 
 =cut
 sub access_token_url {
@@ -342,7 +342,8 @@ sub _url {
     my $self = shift;
     my $key  = shift;
     $self->{urls}->{$key} = shift if @_;
-    return $self->{urls}->{$key};
+    my $url  = $self->{urls}->{$key} || return;;
+    return URI->new($url);
 }
 
 # generate a random number
@@ -382,13 +383,24 @@ sub request_access_token {
     $self->access_token($access_token_response_query->param('oauth_token'));
     $self->access_token_secret($access_token_response_query->param('oauth_token_secret'));
 
+    delete $self->{tokens}->{$_} for qw(request_token request_token_secret);
+
     die "ERROR: $url did not reply with an access token"
       unless ( $self->access_token && $self->access_token_secret );
 
     return ( $self->access_token, $self->access_token_secret );
 }
 
-sub _request_request_token {
+=head2 request_request_token
+
+Request the request token and request token secret for this user.
+
+This is called automatically by C<get_authorization_url> if necessary.
+
+=cut
+
+
+sub request_request_token {
     my $self = shift;
     my $url  = $self->request_token_url;       
     my $request_token_response = $self->_make_request(
@@ -408,19 +420,24 @@ sub _request_request_token {
 
 }
 
-=head2 get_authorization_url
+=head2 get_authorization_url [param[s]]
 
-Get the URL to authorize a user.
+Get the URL to authorize a user as a URI object.
+
+If you pass in a hash of params then they will added as parameters to the URL.
 
 =cut
 
 sub get_authorization_url {
-    my $self = shift;
+    my $self   = shift;
+    my %params = @_;
     my $url  = $self->authorization_url;
     if (!defined $self->request_token) {
-        $self->_request_request_token;
+        $self->request_request_token;
     }
-    return $url . '?oauth_token=' . $self->request_token;
+    $params{oauth_token} = $self->request_token;
+    $url->query_form(%params);
+    return $url;
 }
 
 =head2 make_restricted_request <url> <HTTP method> [extra[s]]
@@ -500,6 +517,7 @@ sub load_tokens {
         next if /^#/;
         next if /^\s*$/;
         next unless /=/;
+        s/(^\s*|\s*$)//g;
         my ($key, $val) = split /\s*=\s*/, $_, 2;
         $tokens{$key} = $val;
     }
@@ -518,7 +536,7 @@ sub save_tokens {
     my %tokens = @_;
 
     open(my $fh, ">$file") || die "Couldn't open $file for writing: $!\n";
-    foreach my $key (keys %tokens) {
+    foreach my $key (sort keys %tokens) {
         print $fh "$key = ".$tokens{$key}."\n";
     }
     close($fh);

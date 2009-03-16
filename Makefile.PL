@@ -9,7 +9,8 @@ WriteMakefile
                            'Crypt::SSLeay' => '0',
                            'LWP::UserAgent' => '0',
                            'Net::OAuth' => '0',
-                           'Test::More' => '0.06'
+                           'Test::More' => '0.06',
+                           'URI' => '0'
                          },
           'INSTALLDIRS' => 'site',
           'EXE_FILES' => [],
