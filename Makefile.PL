@@ -5,8 +5,11 @@ WriteMakefile
           'NAME' => 'Net::OAuth::Simple',
           'VERSION_FROM' => 'lib/Net/OAuth/Simple.pm',
           'PREREQ_PM' => {
+                           'CGI' => '0',
+                           'Crypt::SSLeay' => '0',
+                           'LWP::UserAgent' => '0',
                            'Net::OAuth' => '0',
-                           'Test::More' => '0'
+                           'Test::More' => '0.06'
                          },
           'INSTALLDIRS' => 'site',
           'EXE_FILES' => [],
