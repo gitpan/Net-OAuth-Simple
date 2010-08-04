@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!perl -w
 
 
 use strict;
@@ -23,14 +23,17 @@ unless ($app->consumer_key && $app->consumer_secret) {
 # If the app is authorized (i.e has an access token and secret)
 # Then look at a restricted resourse
 get_dms($app) if $app->authorized;
-	
-# Otherwise the user needs to go get an access token and secret
-print "Enter your username:\n";
-chomp(my $username = <STDIN>);
-print "Enter your password:\n";
-chomp(my $password = <STDIN>);
 
-my ($access_token, $access_token_secret) = $app->xauth_request_access_token( x_auth_username => $username, x_auth_password => $password, x_auth_mode => 'client_auth' );
+# right, we need to get their access stuff
+print "STEP 1: REQUEST TWITTER AUTHORIZATION FOR THIS APP\n";
+print "\tURL : ".$app->get_authorization_url( callback => 'oob' )."\n";
+print "\n-- Please go to the above URL and authorize the app";
+print "\n-- It will give you a code. Please type it here: ";
+my $verifier = <STDIN>; print "\n";
+chomp($verifier); $verifier =~ s!(^\s*|\s*$)!!g;
+$app->verifier($verifier);
+
+my ($access_token, $access_token_secret) = $app->request_access_token();
 
 print "You have now authorized this app.\n";
 print "Your access token and secret are:\n\n";
